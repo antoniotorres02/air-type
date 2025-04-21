@@ -1,4 +1,5 @@
 {
+  "provider": "groq",
   "groq_api_key": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   "model_name": "whisper-large-v3",
   "sample_rate": 16000,

@@ -10,9 +10,13 @@ from keyboard_listener import start_keyboard_listener, trigger_transcription
 from socket_server import is_server_running, start_server, stop_server, send_trigger_command
 import sys
 
-def main():
-    
-    # Verificar argumentos de línea de comandos
+
+def handle_command_line_arguments():
+    """
+    Maneja los argumentos de la línea de comandos.
+    Si se especifica --transcript, intenta comunicarse con la instancia principal.
+    Si no se encuentra la instancia principal, continúa como instancia principal.
+    """
     if len(sys.argv) > 1 and sys.argv[1] == "--transcript":
         # Modo cliente: intentar comunicarse con la instancia principal
         if is_server_running():
@@ -24,7 +28,12 @@ def main():
                 print("Error al enviar la solicitud. Iniciando como instancia principal...")
         else:
             print("No se detectó ninguna instancia principal. Iniciando como instancia principal...")
+
+
+def main():
     
+    handle_command_line_arguments()
+
     config = load_config()
     config = show_configuration(config)
     
@@ -53,3 +62,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

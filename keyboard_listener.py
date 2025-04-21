@@ -4,7 +4,7 @@ Módulo para gestionar los eventos del teclado
 import threading
 from pynput import keyboard
 from audio_recorder import record_audio_continuous, is_recording, stop_recording
-from transcription import transcribe_with_groq, write_text
+from transcription import write_text, get_transcriber
 
 # Variables de estado del teclado
 listener_thread = None
@@ -15,7 +15,7 @@ def process_audio_and_transcribe(sample_rate):
     """Procesa el audio grabado, lo transcribe y escribe el resultado"""
     audio = record_audio_continuous()
     if audio is not None:
-        text = transcribe_with_groq(audio, sample_rate)
+        text = get_transcriber().transcribe(audio, sample_rate)
         if text:
             write_text(text)
             print(f"Texto transcrito y escrito: {text}")

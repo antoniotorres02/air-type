@@ -8,6 +8,7 @@ from tkinter import ttk
 
 # Valores por defecto
 DEFAULT_CONFIG = {
+    "provider" : "groq",
     "groq_api_key": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
     "model_name": "whisper-large-v3",
     "sample_rate": 16000,
