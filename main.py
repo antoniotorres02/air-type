@@ -5,22 +5,24 @@ import pyautogui
 import threading
 import json
 import tkinter as tk
+from tkinter import ttk
 from pynput import keyboard
 from io import BytesIO
 from scipy.io.wavfile import write as write_wav
-import pyperclip  # <-- Añadir este import
+import pyperclip  # <-- Añadido este import
 
-
+# Variables de configuración globales (se pueden modificar desde la interfaz)
 GROQ_API_KEY = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 MODEL_NAME = "whisper-large-v3"
 SAMPLE_RATE = 16000
 RECORD_SECONDS = 5
+command_key = "f8"  # Por defecto, la tecla para activar la grabación
 
 listener_thread = None
 stop_event = threading.Event()
 recording = False
 recording_bubble = None
-audio_frames = []  # Renamed to avoid conflict
+audio_frames = []  # Renombrado para evitar conflicto
 
 def create_recording_bubble():
     global recording_bubble
@@ -31,19 +33,19 @@ def create_recording_bubble():
         print(f"Error obteniendo posición: {e}")
         x, y = 100, 100  # Posición por defecto
     
-    # Create bubble window
+    # Crear la ventana burbuja
     recording_bubble = tk.Tk()
     recording_bubble.overrideredirect(True)
     recording_bubble.attributes("-topmost", True)
     recording_bubble.configure(bg='red')
     recording_bubble.geometry(f"120x40+{x}+{y}")
     
-    # Add label
+    # Agregar etiqueta
     label = tk.Label(recording_bubble, text="RECORDING...", bg='red', fg='white', 
                     font=("Arial", 10, "bold"))
     label.pack(fill=tk.BOTH, expand=True)
     
-    # Bind click event to stop recording
+    # Vincular el click para detener la grabación
     recording_bubble.bind("<Button-1>", lambda e: stop_recording())
     
     recording_bubble.update()
@@ -56,15 +58,15 @@ def stop_recording():
         recording_bubble = None
 
 def audio_callback(indata, frames_count, time, status):
-    """Callback for the sounddevice InputStream"""
-    global audio_frames  # Using the renamed global variable
+    """Callback para el InputStream de sounddevice"""
+    global audio_frames
     if recording:
         audio_frames.append(indata.copy())
 
 def record_audio_continuous():
     global recording, audio_frames
     
-    # Clear previous recordings
+    # Limpiar grabaciones previas
     audio_frames = []
     recording = True
     
@@ -73,13 +75,13 @@ def record_audio_continuous():
     print("Grabando audio continuamente... (haz clic en la burbuja o presiona ESC para detener)")
     
     try:
-        # Start continuous recording
+        # Iniciar grabación continua
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, callback=audio_callback):
             while recording:
                 if recording_bubble:
-                    recording_bubble.update()  # Update the bubble GUI
+                    recording_bubble.update()  # Actualizar GUI de la burbuja
                 
-                # Short sleep to prevent high CPU usage
+                # Pequeña pausa para evitar alto uso de CPU
                 threading.Event().wait(0.1)
                 
     except Exception as e:
@@ -87,9 +89,8 @@ def record_audio_continuous():
     finally:
         stop_recording()
 
-    # Process all collected audio if recording was stopped properly
+    # Procesar todo el audio recogido si la grabación se detuvo correctamente
     if audio_frames:
-        # Concatenate all audio frames
         audio_data = np.concatenate(audio_frames)
         return audio_data
     return None
@@ -162,10 +163,10 @@ def process_audio_and_transcribe():
         print("No se grabó audio.")
 
 def on_key_press(key):
-    global listener_thread, recording
+    global listener_thread, recording, command_key
     try:
-        if key == keyboard.Key.f8 and not recording:
-            print("\nF8 presionado. Iniciando grabación continua...")
+        if hasattr(key, "name") and key.name == command_key and not recording:
+            print(f"\n{command_key.upper()} presionado. Iniciando grabación continua...")
             processing_thread = threading.Thread(target=process_audio_and_transcribe, daemon=True)
             processing_thread.start()
         elif key == keyboard.Key.esc:
@@ -181,9 +182,48 @@ def on_key_press(key):
     except Exception as e:
         print(f"Error en on_key_press: {e}")
 
+def show_configuration():
+    """Muestra una ventana de configuración para cambiar la API key de Groq y el comando de grabación"""
+    def guardar_config():
+        global GROQ_API_KEY, command_key
+        # Actualizar variables globales
+        GROQ_API_KEY = api_entry.get().strip()
+        # Convertir el comando a minúsculas para su comparación en on_key_press
+        command_key = command_entry.get().strip().lower()
+        config_window.destroy()
+    
+    config_window = tk.Tk()
+    config_window.title("Configuración")
+    config_window.resizable(False, False)
+    
+    frame = ttk.Frame(config_window, padding="10")
+    frame.grid(row=0, column=0)
+    
+    # Campo para Groq API Key
+    ttk.Label(frame, text="API Key Groq:").grid(row=0, column=0, sticky="w")
+    api_entry = ttk.Entry(frame, width=50)
+    api_entry.insert(0, GROQ_API_KEY)
+    api_entry.grid(row=0, column=1, pady=5)
+    
+    # Campo para comando
+    ttk.Label(frame, text="Tecla de grabación (ej: f8):").grid(row=1, column=0, sticky="w")
+    command_entry = ttk.Entry(frame, width=10)
+    command_entry.insert(0, command_key)
+    command_entry.grid(row=1, column=1, pady=5, sticky="w")
+    
+    # Botón para guardar
+    guardar_btn = ttk.Button(frame, text="Guardar", command=guardar_config)
+    guardar_btn.grid(row=2, column=0, columnspan=2, pady=10)
+    
+    # Ejecutar la ventana de configuración de forma bloqueante
+    config_window.mainloop()
+
 def main():
     global listener_thread
-    print(f"Presiona F8 para iniciar la grabación continua (usando Groq API - {MODEL_NAME}).")
+    # Mostrar la interfaz de configuración antes de iniciar el listener
+    show_configuration()
+    
+    print(f"Presiona {command_key.upper()} para iniciar la grabación continua (usando Groq API - {MODEL_NAME}).")
     print("Presiona Esc o haz clic en la burbuja de grabación para detener.")
     print("Presiona Esc cuando no estés grabando para salir del programa.")
     
@@ -192,7 +232,7 @@ def main():
     stop_event.wait()
     print("Saliendo del programa...")
     
-    # Ensure recording is stopped before exiting
+    # Asegurarse de que la grabación se detenga antes de salir
     if recording:
         stop_recording()
     
