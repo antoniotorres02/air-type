@@ -198,6 +198,23 @@ class LinuxWaylandHyprlandAdapter(OSAdapter):
             pyautogui.hotkey("ctrl", "v")
             print("Texto escrito con pyautogui.")
 
+    def get_cursor_position(self) -> tuple[int, int]:
+        """Obtiene la posición actual del cursor en Hyprland
+        
+        Returns:
+            tuple[int, int]: Coordenadas (x, y) de la posición del cursor
+        """
+        try:
+            out = subprocess.check_output(["hyprctl", "cursorpos"], stderr=subprocess.DEVNULL)
+            pos_str = out.decode().strip()
+            # El formato esperado es: "X, Y"
+            x, y = map(int, pos_str.split(','))
+            print(f"Posición del cursor (Hyprland): ({x}, {y})")
+            return (x, y)
+        except Exception as e:
+            print(f"Error al obtener la posición del cursor (Hyprland): {e}")
+            return (0, 0)
+        
 class LinuxWaylandSwayAdapter(OSAdapter):
     """Adaptador para Linux con Wayland (Sway)"""
     

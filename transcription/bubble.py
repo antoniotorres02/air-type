@@ -3,7 +3,7 @@ from PyQt5.QtCore import Qt, QPoint
 from PyQt5.QtGui import QMouseEvent, QCursor
 from PyQt5.QtCore import QTimer
 from PyQt5.QtCore import QObject, pyqtSignal
-
+from .utils import get_cursor_position
 
 class BubbleManager(QObject):
     show_bubble = pyqtSignal()
@@ -68,10 +68,12 @@ class BubbleManager(QObject):
         self.recording_bubble.setFixedSize(200, 60)
 
         # Posicionamiento
-        cursor_pos = QCursor.pos()
+        cursor_pos = get_cursor_position()
         
-        self.recording_bubble.move(cursor_pos.x(), cursor_pos.y() - 100)
-        print(f"Moving recording bubble to x={cursor_pos.x()}, y={cursor_pos.y() - 100}")
+        x, y = cursor_pos
+
+        self.recording_bubble.move(x, y - 100)
+        print(f"Moving recording bubble to x={x}, y={y - 100}")
 
         # Eventos
         def mousePressEvent(event: QMouseEvent):
