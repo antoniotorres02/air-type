@@ -4,7 +4,7 @@ Módulo para gestionar los eventos del teclado
 import threading
 from pynput import keyboard
 from audio_recorder import record_audio_continuous, is_recording, stop_recording
-from transcription import write_text, get_transcriber
+from transcription import write_text, get_transcriber, BubbleManager, save_active_window
 
 # Variables de estado del teclado
 listener_thread = None
@@ -13,6 +13,7 @@ command_key = "f8"  # Por defecto
 
 def process_audio_and_transcribe(sample_rate):
     """Procesa el audio grabado, lo transcribe y escribe el resultado"""
+    save_active_window()
     audio = record_audio_continuous()
     if audio is not None:
         text = get_transcriber().transcribe(audio, sample_rate)
@@ -36,13 +37,15 @@ def trigger_transcription(config):
         processing_thread.start()
         return True
     else:
-        print("\nYa hay una transcripción en curso, ignorando solicitud remota.")
+        stop_recording()
+        print("\nYa hay una transcripción en curso, parando la transcripción")
         return False
 
 
 def on_key_press(key):
     """Manejador de eventos de teclado"""
     global command_key
+    
     
     try:
         if hasattr(key, "name") and key.name == command_key and not is_recording():

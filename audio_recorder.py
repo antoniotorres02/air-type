@@ -6,6 +6,15 @@ import tkinter as tk
 import pyautogui
 import sounddevice as sd
 import numpy as np
+from transcription import BubbleManager, bubble_manager
+
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout
+from PyQt5.QtCore import Qt, QPoint
+from PyQt5.QtGui import QMouseEvent
+from PyQt5.QtCore import QTimer
+import os
+
+
 
 # Variables globales del módulo
 recording = False
@@ -16,42 +25,7 @@ sample_rate = 16000  # valor por defecto
 def setup_recorder(config):
     """Configura el grabador de audio con los parámetros dados"""
     global sample_rate
-    sample_rate = config["sample_rate"]
-
-def create_recording_bubble():
-    """Crea una burbuja visual que indica que se está grabando"""
-    global recording_bubble
-    try:
-        x, y = pyautogui.position()
-        y -= 100  
-    except Exception as e:
-        print(f"Error obteniendo posición: {e}")
-        x, y = 100, 100  # Posición por defecto
-    
-    # Crear la ventana burbuja
-    recording_bubble = tk.Tk()
-    recording_bubble.overrideredirect(True)
-    recording_bubble.attributes("-topmost", True)
-    recording_bubble.configure(bg='red')
-    recording_bubble.geometry(f"120x40+{x}+{y}")
-    
-    # Agregar etiqueta
-    label = tk.Label(recording_bubble, text="RECORDING...", bg='red', fg='white', 
-                    font=("Arial", 10, "bold"))
-    label.pack(fill=tk.BOTH, expand=True)
-    
-    # Vincular el click para detener la grabación
-    recording_bubble.bind("<Button-1>", lambda e: stop_recording())
-    
-    recording_bubble.update()
-
-def stop_recording():
-    """Detiene la grabación y elimina la burbuja visual"""
-    global recording, recording_bubble
-    recording = False
-    if recording_bubble:
-        recording_bubble.destroy()
-        recording_bubble = None
+    sample_rate = int(os.getenv("SAMPLE_RATE", "16000"))
 
 def audio_callback(indata, frames_count, time, status):
     """Callback para el InputStream de sounddevice"""
@@ -60,31 +34,37 @@ def audio_callback(indata, frames_count, time, status):
         audio_frames.append(indata.copy())
 
 def record_audio_continuous():
-    """Graba audio continuamente hasta que se detiene manualmente"""
-    global recording, audio_frames
+    """Graba audio continuamente hasta que se detiene manualmente.
     
-    # Limpiar grabaciones previas
-    audio_frames = []
+    Args:
+        bubble_manager: Instancia de BubbleManager para mostrar/ocultar la burbuja.
+    """
+    global audio_frames
+    global recording
     recording = True
-    
-    create_recording_bubble()
+    audio_frames = [] 
+    # Conectar la señal de cierre de la burbuja para detener la grabación
+
+
+    bubble_manager.bubble_closed.connect(stop_recording)
+    bubble_manager.show_bubble.emit()  # Mostrar la burbuja
     
     print("Grabando audio continuamente... (haz clic en la burbuja o presiona ESC para detener)")
-    
+
     try:
-        # Iniciar grabación continua
         with sd.InputStream(samplerate=sample_rate, channels=1, callback=audio_callback):
             while recording:
-                if recording_bubble:
-                    recording_bubble.update()  # Actualizar GUI de la burbuja
-                
                 # Pequeña pausa para evitar alto uso de CPU
-                threading.Event().wait(0.1)
-                
+                if bubble_manager.recording_bubble == None:
+                    stop_recording()
+                threading.Event().wait(0.5)
+
     except Exception as e:
         print(f"Error durante la grabación: {e}")
     finally:
-        stop_recording()
+        if recording:
+            recording = False
+            bubble_manager._hide_bubble()  # Asegurarse de cerrar la burbuja
 
     # Procesar todo el audio recogido si la grabación se detuvo correctamente
     if audio_frames:
@@ -95,3 +75,7 @@ def record_audio_continuous():
 def is_recording():
     """Devuelve si actualmente se está grabando"""
     return recording
+
+def stop_recording():
+    global recording
+    recording = False
